@@ -46,6 +46,21 @@ Item
     property string infoText: ""
     property string toolTipText: ""
 
+    // Fade handle properties
+    property int fadeInDuration: sfRef ? sfRef.fadeInDuration : 0
+    property int fadeOutDuration: sfRef ? sfRef.fadeOutDuration : 0
+    property real fadeInWidth: fadeInDuration > 0 ?
+        (timeDivision === Show.Time ?
+            TimeUtils.timeToSize(fadeInDuration, timeScale, tickSize) :
+            TimeUtils.beatsToSize(fadeInDuration, tickSize, beatsDivision)) : 0
+    property real fadeOutWidth: fadeOutDuration > 0 ?
+        (timeDivision === Show.Time ?
+            TimeUtils.timeToSize(fadeOutDuration, timeScale, tickSize) :
+            TimeUtils.beatsToSize(fadeOutDuration, tickSize, beatsDivision)) : 0
+
+    onFadeInDurationChanged: fadeCanvas.requestPaint()
+    onFadeOutDurationChanged: fadeCanvas.requestPaint()
+
     // Snap-to-item properties
     property var snapEdges: []
     property real snapThreshold: 15
@@ -65,9 +80,9 @@ Item
     }
 
     onStartTimeChanged: updateGeometry()
-    onDurationChanged: updateGeometry()
-    onTimeScaleChanged: updateGeometry()
-    onTimeDivisionChanged: updateGeometry()
+    onDurationChanged: { updateGeometry(); fadeCanvas.requestPaint() }
+    onTimeScaleChanged: { updateGeometry(); fadeCanvas.requestPaint() }
+    onTimeDivisionChanged: { updateGeometry(); fadeCanvas.requestPaint() }
 
     onGlobalColorChanged:
     {
@@ -117,6 +132,10 @@ Item
 
         tooltip += qsTr("Position: ") + pos
         tooltip += "\n" + qsTr("Duration: ") + dur
+        if (fadeInDuration > 0)
+            tooltip += "\n" + qsTr("Fade In: ") + TimeUtils.msToString(fadeInDuration)
+        if (fadeOutDuration > 0)
+            tooltip += "\n" + qsTr("Fade Out: ") + TimeUtils.msToString(fadeOutDuration)
         toolTipText = tooltip
     }
 
@@ -249,6 +268,232 @@ Item
 
             }
             context.stroke()
+        }
+    }
+
+    /* Fade overlay canvas - draws fade in/out regions */
+    Canvas
+    {
+        id: fadeCanvas
+        z: 4
+        anchors.fill: parent
+        contextType: "2d"
+
+        onPaint:
+        {
+            if (context === null)
+                return
+
+            context.clearRect(0, 0, width, height)
+
+            var fiW = itemRoot.fadeInWidth
+            var foW = itemRoot.fadeOutWidth
+
+            if (fiW > 0)
+            {
+                // Semi-transparent overlay for fade in region
+                context.fillStyle = "#40000000"
+                context.beginPath()
+                context.moveTo(0, 0)
+                context.lineTo(fiW, 0)
+                context.lineTo(0, height)
+                context.closePath()
+                context.fill()
+
+                // Fade in line
+                context.strokeStyle = "#FFFFFF"
+                context.lineWidth = 2
+                context.beginPath()
+                context.moveTo(0, height)
+                context.lineTo(fiW, 0)
+                context.stroke()
+            }
+
+            if (foW > 0)
+            {
+                // Semi-transparent overlay for fade out region
+                context.fillStyle = "#40000000"
+                context.beginPath()
+                context.moveTo(width, 0)
+                context.lineTo(width - foW, 0)
+                context.lineTo(width, height)
+                context.closePath()
+                context.fill()
+
+                // Fade out line
+                context.strokeStyle = "#FFFFFF"
+                context.lineWidth = 2
+                context.beginPath()
+                context.moveTo(width - foW, 0)
+                context.lineTo(width, height)
+                context.stroke()
+            }
+        }
+    }
+
+    /* Fade in handle - drag from left edge to create fade in */
+    Rectangle
+    {
+        id: fadeInHandle
+        x: itemRoot.fadeInWidth - width / 2
+        y: -height / 4
+        z: 6
+        width: 12
+        height: 12
+        radius: 2
+        color: fadeInHandleMa.containsMouse || fadeInHandleMa.pressed ? "#FFFF00" : "#DDDDDD"
+        border.width: 1
+        border.color: "#333333"
+        visible: sfRef ? (!sfRef.locked && (fadeInDuration > 0 || sfMouseArea.containsMouse)) : false
+        opacity: fadeInDuration > 0 ? 1.0 : 0.6
+
+        Canvas
+        {
+            anchors.fill: parent
+            anchors.margins: 2
+            contextType: "2d"
+            onPaint:
+            {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+                ctx.fillStyle = parent.border.color
+                ctx.beginPath()
+                ctx.moveTo(0, 0)
+                ctx.lineTo(width, 0)
+                ctx.lineTo(width, height)
+                ctx.closePath()
+                ctx.fill()
+            }
+        }
+
+        MouseArea
+        {
+            id: fadeInHandleMa
+            anchors.fill: parent
+            anchors.margins: -5
+            hoverEnabled: true
+            preventStealing: true
+            cursorShape: containsMouse ? Qt.SizeHorCursor : Qt.ArrowCursor
+
+            onPressed: (mouse) =>
+            {
+                isDragging = true
+                showManager.enableFlicking(false)
+            }
+            onPositionChanged: (mouse) =>
+            {
+                if (!pressed)
+                    return
+
+                var localX = mapToItem(itemRoot, mouse.x, mouse.y).x
+                // Clamp: minimum 0, maximum is width minus fade out region
+                var maxWidth = itemRoot.width - itemRoot.fadeOutWidth
+                localX = Math.max(0, Math.min(localX, maxWidth))
+
+                var newFadeIn
+                if (timeDivision === Show.Time)
+                    newFadeIn = TimeUtils.posToMs(localX, timeScale, tickSize)
+                else
+                    newFadeIn = TimeUtils.posToBeat(localX, tickSize, beatsDivision)
+
+                var maxFade = duration - fadeOutDuration
+                newFadeIn = Math.max(0, Math.min(newFadeIn, maxFade))
+                sfRef.fadeInDuration = newFadeIn
+                fadeCanvas.requestPaint()
+
+                infoText = qsTr("Fade In: ") + TimeUtils.msToString(newFadeIn)
+            }
+            onReleased:
+            {
+                showManager.setShowItemFadeIn(sfRef, sfRef.fadeInDuration)
+                infoText = ""
+                isDragging = false
+                showManager.enableFlicking(true)
+                updateTooltipText()
+            }
+        }
+    }
+
+    /* Fade out handle - drag from right edge to create fade out */
+    Rectangle
+    {
+        id: fadeOutHandle
+        x: itemRoot.width - itemRoot.fadeOutWidth - width / 2
+        y: -height / 4
+        z: 6
+        width: 12
+        height: 12
+        radius: 2
+        color: fadeOutHandleMa.containsMouse || fadeOutHandleMa.pressed ? "#FFFF00" : "#DDDDDD"
+        border.width: 1
+        border.color: "#333333"
+        visible: sfRef ? (!sfRef.locked && (fadeOutDuration > 0 || sfMouseArea.containsMouse)) : false
+        opacity: fadeOutDuration > 0 ? 1.0 : 0.6
+
+        Canvas
+        {
+            anchors.fill: parent
+            anchors.margins: 2
+            contextType: "2d"
+            onPaint:
+            {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+                ctx.fillStyle = parent.border.color
+                ctx.beginPath()
+                ctx.moveTo(0, 0)
+                ctx.lineTo(width, 0)
+                ctx.lineTo(0, height)
+                ctx.closePath()
+                ctx.fill()
+            }
+        }
+
+        MouseArea
+        {
+            id: fadeOutHandleMa
+            anchors.fill: parent
+            anchors.margins: -5
+            hoverEnabled: true
+            preventStealing: true
+            cursorShape: containsMouse ? Qt.SizeHorCursor : Qt.ArrowCursor
+
+            onPressed: (mouse) =>
+            {
+                isDragging = true
+                showManager.enableFlicking(false)
+            }
+            onPositionChanged: (mouse) =>
+            {
+                if (!pressed)
+                    return
+
+                var localX = mapToItem(itemRoot, mouse.x, mouse.y).x
+                // fadeOutWidth = width - localX, clamped
+                var fadeOutPixels = itemRoot.width - localX
+                fadeOutPixels = Math.max(0, Math.min(fadeOutPixels, itemRoot.width - itemRoot.fadeInWidth))
+
+                var newFadeOut
+                if (timeDivision === Show.Time)
+                    newFadeOut = TimeUtils.posToMs(fadeOutPixels, timeScale, tickSize)
+                else
+                    newFadeOut = TimeUtils.posToBeat(fadeOutPixels, tickSize, beatsDivision)
+
+                var maxFade = duration - fadeInDuration
+                newFadeOut = Math.max(0, Math.min(newFadeOut, maxFade))
+                sfRef.fadeOutDuration = newFadeOut
+                fadeCanvas.requestPaint()
+
+                infoText = qsTr("Fade Out: ") + TimeUtils.msToString(newFadeOut)
+            }
+            onReleased:
+            {
+                showManager.setShowItemFadeOut(sfRef, sfRef.fadeOutDuration)
+                infoText = ""
+                isDragging = false
+                showManager.enableFlicking(true)
+                updateTooltipText()
+            }
         }
     }
 

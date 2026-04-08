@@ -44,6 +44,8 @@ class ShowFunction final : public QObject
     Q_PROPERTY(int functionID READ functionID WRITE setFunctionID NOTIFY functionIDChanged)
     Q_PROPERTY(int startTime READ startTime WRITE setStartTime NOTIFY startTimeChanged)
     Q_PROPERTY(int duration READ duration WRITE setDuration NOTIFY durationChanged)
+    Q_PROPERTY(int fadeInDuration READ fadeInDuration WRITE setFadeInDuration NOTIFY fadeInDurationChanged)
+    Q_PROPERTY(int fadeOutDuration READ fadeOutDuration WRITE setFadeOutDuration NOTIFY fadeOutDurationChanged)
     Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
     Q_PROPERTY(bool locked READ isLocked WRITE setLocked NOTIFY lockedChanged)
 
@@ -68,6 +70,14 @@ public:
     quint32 duration() const;
     quint32 duration(const Doc *doc) const;
 
+    /** Get/Set the fade in duration in milliseconds for this Show item */
+    void setFadeInDuration(quint32 fadeIn);
+    quint32 fadeInDuration() const;
+
+    /** Get/Set the fade out duration in milliseconds for this Show item */
+    void setFadeOutDuration(quint32 fadeOut);
+    quint32 fadeOutDuration() const;
+
     /** Get/Set the color of the item when rendered in the Show Manager */
     void setColor(QColor color);
     QColor color() const;
@@ -87,6 +97,8 @@ signals:
     void functionIDChanged();
     void startTimeChanged();
     void durationChanged();
+    void fadeInDurationChanged();
+    void fadeOutDurationChanged();
     void colorChanged();
     void lockedChanged();
 
@@ -102,6 +114,12 @@ private:
 
     /** Duration of the Function in milliseconds */
     quint32 m_duration;
+
+    /** Fade in duration in milliseconds */
+    quint32 m_fadeInDuration;
+
+    /** Fade out duration in milliseconds */
+    quint32 m_fadeOutDuration;
 
     /** Background color to be used when displaying the Function in
      *  the Show Manager */
