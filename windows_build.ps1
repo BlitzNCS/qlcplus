@@ -167,6 +167,7 @@ if (-not $SkipDeps) {
         "mingw-w64-x86_64-fftw",
         "mingw-w64-x86_64-libusb",
         "mingw-w64-x86_64-python-pip",
+        "mingw-w64-x86_64-python-psutil",
         "mingw-w64-x86_64-nsis"
     ) -join " "
     Invoke-Msys2 "pacman -S --needed --noconfirm $packages" "Installing packages..."
