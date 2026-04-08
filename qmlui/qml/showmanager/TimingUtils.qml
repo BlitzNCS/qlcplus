@@ -35,6 +35,8 @@ Rectangle
     readonly property int fieldStart: 1
     readonly property int fieldEnd: 2
     readonly property int fieldDuration: 3
+    readonly property int fieldFadeIn: 4
+    readonly property int fieldFadeOut: 5
 
     property int activeField: fieldNone
     property var activeTarget: null
@@ -163,6 +165,14 @@ Rectangle
                     newDur = minDur
                 showManager.setShowItemDuration(sf, newDur)
             }
+            else if (fieldId === fieldFadeIn)
+            {
+                showManager.setShowItemFadeIn(sf, Math.max(0, value))
+            }
+            else if (fieldId === fieldFadeOut)
+            {
+                showManager.setShowItemFadeOut(sf, Math.max(0, value))
+            }
         }
     }
 
@@ -199,6 +209,14 @@ Rectangle
                 if (newDur < minDur)
                     newDur = minDur
                 showManager.setShowItemDuration(sf, newDur)
+            }
+            else if (fieldId === fieldFadeIn)
+            {
+                showManager.setShowItemFadeIn(sf, Math.max(0, sf.fadeInDuration + delta))
+            }
+            else if (fieldId === fieldFadeOut)
+            {
+                showManager.setShowItemFadeOut(sf, Math.max(0, sf.fadeOutDuration + delta))
             }
         }
     }
@@ -307,6 +325,10 @@ Rectangle
                             return selectedItem.startTime + selectedItem.duration
                         if (activeField === fieldDuration)
                             return selectedItem.duration
+                        if (activeField === fieldFadeIn)
+                            return selectedItem.fadeInDuration
+                        if (activeField === fieldFadeOut)
+                            return selectedItem.fadeOutDuration
                         return 0
                     }
 
@@ -511,6 +533,232 @@ Rectangle
                         }
                     }
                 } // timingArea
+        } // SectionBox
+
+        SectionBox
+        {
+            width: parent.width
+            sectionLabel: qsTr("Speed")
+            sectionContents:
+                Item
+                {
+                    id: speedArea
+                    width: panelContainer.width
+                    height: speedGrid.implicitHeight
+                    property var activeTarget: panelContainer.activeTarget
+                    property int lastSpinValue: 0
+                    property real targetX: 0
+                    property real targetY: 0
+                    property real targetWidth: 0
+                    property real targetHeight: 0
+
+                    function updateOverlay(target)
+                    {
+                        if (!target)
+                            return
+                        var pos = target.mapToItem(speedArea, 0, 0)
+                        targetX = pos.x
+                        targetY = pos.y
+                        targetWidth = target.width
+                        targetHeight = target.height
+                    }
+
+                    function activeFieldValue()
+                    {
+                        if (!selectedItem)
+                            return 0
+                        if (activeField === fieldFadeIn)
+                            return selectedItem.fadeInDuration
+                        if (activeField === fieldFadeOut)
+                            return selectedItem.fadeOutDuration
+                        return 0
+                    }
+
+                    function updateSpinValues()
+                    {
+                        var value = activeFieldValue()
+                        if (value < 0)
+                            value = 0
+                        if (hasMultipleSelection)
+                            value = 0
+                        lastSpinValue = value
+
+                        fadeHoursSpin.value = Math.floor(value / 3600000)
+                        value -= fadeHoursSpin.value * 3600000
+                        fadeMinutesSpin.value = Math.floor(value / 60000)
+                        value -= fadeMinutesSpin.value * 60000
+                        fadeSecondsSpin.value = Math.floor(value / 1000)
+                        value -= fadeSecondsSpin.value * 1000
+                        fadeMillisSpin.value = value
+                    }
+
+                    function applySpinValue(value)
+                    {
+                        if (hasMultipleSelection)
+                        {
+                            var delta = value - lastSpinValue
+                            if (!delta)
+                                return
+                            lastSpinValue = value
+                            panelContainer.applyRelativeValue(activeField, delta)
+                        }
+                        else
+                        {
+                            panelContainer.applyAbsoluteValue(activeField, value)
+                        }
+                    }
+
+                    onActiveTargetChanged: updateOverlay(activeTarget)
+
+                    Connections
+                    {
+                        target: panelContainer
+                        ignoreUnknownSignals: true
+
+                        function onActiveFieldChanged()
+                        {
+                            speedArea.updateOverlay(speedArea.activeTarget)
+                            if (panelContainer.activeField === fieldFadeIn ||
+                                panelContainer.activeField === fieldFadeOut)
+                                speedArea.updateSpinValues()
+                        }
+                    }
+
+                    Connections
+                    {
+                        target: speedArea.activeTarget
+                        ignoreUnknownSignals: true
+
+                        function onXChanged() { speedArea.updateOverlay(speedArea.activeTarget) }
+                        function onYChanged() { speedArea.updateOverlay(speedArea.activeTarget) }
+                        function onWidthChanged() { speedArea.updateOverlay(speedArea.activeTarget) }
+                        function onHeightChanged() { speedArea.updateOverlay(speedArea.activeTarget) }
+                    }
+
+                    onWidthChanged:
+                    {
+                        if (activeTarget)
+                            updateOverlay(activeTarget)
+                    }
+                    onHeightChanged:
+                    {
+                        if (activeTarget)
+                            updateOverlay(activeTarget)
+                    }
+
+                    GridLayout
+                    {
+                        id: speedGrid
+                        width: panelContainer.width
+                        columns: 2
+                        columnSpacing: 5
+                        rowSpacing: 5
+
+                        RobotoText
+                        {
+                            label: qsTr("Fade in")
+                        }
+
+                        GenericButton
+                        {
+                            id: fadeInButton
+                            Layout.fillWidth: true
+                            opacity: activeField === fieldFadeIn ? 0 : 1
+                            enabled: hasSelection && activeField !== fieldFadeIn
+                            bgColor: UISettings.bgMedium
+                            hoverColor: UISettings.fgLight
+                            label: timeLabelForValue(selectedItem ? selectedItem.fadeInDuration : 0)
+                            onClicked: toggleField(fieldFadeIn, fadeInButton)
+                        }
+
+                        RobotoText
+                        {
+                            label: qsTr("Fade out")
+                        }
+
+                        GenericButton
+                        {
+                            id: fadeOutButton
+                            Layout.fillWidth: true
+                            opacity: activeField === fieldFadeOut ? 0 : 1
+                            enabled: hasSelection && activeField !== fieldFadeOut
+                            bgColor: UISettings.bgMedium
+                            hoverColor: UISettings.fgLight
+                            label: timeLabelForValue(selectedItem ? selectedItem.fadeOutDuration : 0)
+                            onClicked: toggleField(fieldFadeOut, fadeOutButton)
+                        }
+                    } // GridLayout
+
+                    Item
+                    {
+                        id: fadeOverlayContainer
+                        visible: (activeField === fieldFadeIn || activeField === fieldFadeOut) && activeTarget
+                        z: 2
+                        x: speedArea.targetX
+                        y: speedArea.targetY
+                        width: speedArea.targetWidth
+                        height: speedArea.targetHeight
+
+                        RowLayout
+                        {
+                            id: fadeOverlayRow
+                            anchors.fill: parent
+                            spacing: 3
+
+                            function totalValue()
+                            {
+                                return (fadeHoursSpin.value * 3600000)
+                                        + (fadeMinutesSpin.value * 60000)
+                                        + (fadeSecondsSpin.value * 1000)
+                                        + fadeMillisSpin.value
+                            }
+
+                            CustomSpinBox
+                            {
+                                id: fadeHoursSpin
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: speedArea.targetHeight
+                                from: hasMultipleSelection ? -999 : 0
+                                to: 999
+                                suffix: "h"
+                                onValueModified: speedArea.applySpinValue(fadeOverlayRow.totalValue())
+                            }
+
+                            CustomSpinBox
+                            {
+                                id: fadeMinutesSpin
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: speedArea.targetHeight
+                                from: hasMultipleSelection ? -59 : 0
+                                to: 59
+                                suffix: "m"
+                                onValueModified: speedArea.applySpinValue(fadeOverlayRow.totalValue())
+                            }
+
+                            CustomSpinBox
+                            {
+                                id: fadeSecondsSpin
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: speedArea.targetHeight
+                                from: hasMultipleSelection ? -59 : 0
+                                to: 59
+                                suffix: "s"
+                                onValueModified: speedArea.applySpinValue(fadeOverlayRow.totalValue())
+                            }
+
+                            CustomSpinBox
+                            {
+                                id: fadeMillisSpin
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: speedArea.targetHeight
+                                from: hasMultipleSelection ? -999 : 0
+                                to: 999
+                                suffix: "ms"
+                                onValueModified: speedArea.applySpinValue(fadeOverlayRow.totalValue())
+                            }
+                        }
+                    }
+                } // speedArea
         } // SectionBox
     } // Column
 }

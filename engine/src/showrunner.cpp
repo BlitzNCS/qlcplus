@@ -274,8 +274,16 @@ void ShowRunner::write(MasterTimer *timer)
     {
         RunningEntry &entry = m_runningQueue[i];
         ShowFunction *sf = entry.showFunction;
+
+        // Use per-instance fades if set, otherwise fall back to Function defaults
         quint32 fadeIn = sf->fadeInDuration();
         quint32 fadeOut = sf->fadeOutDuration();
+        if (fadeIn == 0 && fadeOut == 0)
+        {
+            Function *f = entry.function;
+            fadeIn = f->fadeInSpeed();
+            fadeOut = f->fadeOutSpeed();
+        }
 
         if (fadeIn == 0 && fadeOut == 0)
             continue;
