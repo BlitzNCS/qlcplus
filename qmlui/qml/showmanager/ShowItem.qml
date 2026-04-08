@@ -402,6 +402,8 @@ Item
                 sfRef.fadeInDuration = newFadeIn
                 fadeCanvas.requestPaint()
 
+                infoTextBox.height = itemRoot.height / 2
+                infoTextBox.textHAlign = Text.AlignLeft
                 infoText = qsTr("Fade In: ") + TimeUtils.msToString(newFadeIn)
             }
             onReleased:
@@ -486,6 +488,8 @@ Item
                 sfRef.fadeOutDuration = newFadeOut
                 fadeCanvas.requestPaint()
 
+                infoTextBox.height = itemRoot.height / 2
+                infoTextBox.textHAlign = Text.AlignRight
                 infoText = qsTr("Fade Out: ") + TimeUtils.msToString(newFadeOut)
             }
             onReleased:
