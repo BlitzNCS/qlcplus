@@ -85,8 +85,16 @@ private:
     /** Total time the runner has to run */
     quint32 m_totalRunTime;
 
-    /** List of the currently running Functions and their stop time */
-    QList < QPair<Function *, quint32> > m_runningQueue;
+    /** Running queue entry: Function, its ShowFunction, and stop time */
+    struct RunningEntry
+    {
+        Function *function;
+        ShowFunction *showFunction;
+        quint32 stopTime;
+    };
+
+    /** List of the currently running Functions */
+    QList<RunningEntry> m_runningQueue;
 
 private:
     FunctionParent functionParent() const;

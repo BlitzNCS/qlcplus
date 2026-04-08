@@ -335,8 +335,8 @@ Item
     Rectangle
     {
         id: fadeInHandle
-        x: itemRoot.fadeInWidth - width / 2
-        y: -height / 4
+        x: Math.max(0, itemRoot.fadeInWidth - width / 2)
+        y: 1
         z: 6
         width: 12
         height: 12
@@ -344,8 +344,9 @@ Item
         color: fadeInHandleMa.containsMouse || fadeInHandleMa.pressed ? "#FFFF00" : "#DDDDDD"
         border.width: 1
         border.color: "#333333"
-        visible: sfRef ? (!sfRef.locked && (fadeInDuration > 0 || sfMouseArea.containsMouse)) : false
-        opacity: fadeInDuration > 0 ? 1.0 : 0.6
+        visible: sfRef ? !sfRef.locked : false
+        opacity: fadeInHandleMa.containsMouse || fadeInHandleMa.pressed ? 1.0 :
+                 (fadeInDuration > 0 ? 0.9 : 0.35)
 
         Canvas
         {
@@ -418,8 +419,8 @@ Item
     Rectangle
     {
         id: fadeOutHandle
-        x: itemRoot.width - itemRoot.fadeOutWidth - width / 2
-        y: -height / 4
+        x: Math.min(itemRoot.width - width, Math.max(0, itemRoot.width - itemRoot.fadeOutWidth - width / 2))
+        y: 1
         z: 6
         width: 12
         height: 12
@@ -427,8 +428,9 @@ Item
         color: fadeOutHandleMa.containsMouse || fadeOutHandleMa.pressed ? "#FFFF00" : "#DDDDDD"
         border.width: 1
         border.color: "#333333"
-        visible: sfRef ? (!sfRef.locked && (fadeOutDuration > 0 || sfMouseArea.containsMouse)) : false
-        opacity: fadeOutDuration > 0 ? 1.0 : 0.6
+        visible: sfRef ? !sfRef.locked : false
+        opacity: fadeOutHandleMa.containsMouse || fadeOutHandleMa.pressed ? 1.0 :
+                 (fadeOutDuration > 0 ? 0.9 : 0.35)
 
         Canvas
         {

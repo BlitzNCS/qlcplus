@@ -21,6 +21,7 @@
 #include <QDebug>
 
 #include "showrunner.h"
+#include "showfunction.h"
 #include "function.h"
 #include "track.h"
 #include "show.h"
@@ -114,7 +115,7 @@ void ShowRunner::setPause(bool enable)
 {
     for (int i = 0; i < m_runningQueue.count(); i++)
     {
-        Function *f = m_runningQueue.at(i).first;
+        Function *f = m_runningQueue.at(i).function;
         f->setPause(enable);
     }
 }
@@ -128,7 +129,7 @@ void ShowRunner::stop()
 
     for (int i = 0; i < m_runningQueue.count(); i++)
     {
-        Function *f = m_runningQueue.at(i).first;
+        Function *f = m_runningQueue.at(i).function;
         f->stop(functionParent());
     }
 
@@ -206,7 +207,12 @@ void ShowRunner::write(MasterTimer *timer)
             }
 
             f->start(m_doc->masterTimer(), functionParent(), functionTimeOffset);
-            m_runningQueue.append(QPair<Function *, quint32>(f, sf->startTime() + sf->duration(m_doc)));
+
+            RunningEntry entry;
+            entry.function = f;
+            entry.showFunction = sf;
+            entry.stopTime = sf->startTime() + sf->duration(m_doc);
+            m_runningQueue.append(entry);
             m_currentTimeFunctionIndex++;
         }
         else
@@ -251,21 +257,73 @@ void ShowRunner::write(MasterTimer *timer)
             }
 
             f->start(m_doc->masterTimer(), functionParent(), functionTimeOffset);
-            m_runningQueue.append(QPair<Function *, quint32>(f, sf->startTime() + sf->duration(m_doc)));
+
+            RunningEntry entry;
+            entry.function = f;
+            entry.showFunction = sf;
+            entry.stopTime = sf->startTime() + sf->duration(m_doc);
+            m_runningQueue.append(entry);
             m_currentBeatFunctionIndex++;
         }
         else
             startFunctionsDone = true;
     }
 
-    // Phase 2. Check if we need to stop some running Functions
+    // Phase 2. Apply fade in/out intensity for running functions
+    for (int i = 0; i < m_runningQueue.count(); i++)
+    {
+        RunningEntry &entry = m_runningQueue[i];
+        ShowFunction *sf = entry.showFunction;
+        quint32 fadeIn = sf->fadeInDuration();
+        quint32 fadeOut = sf->fadeOutDuration();
+
+        if (fadeIn == 0 && fadeOut == 0)
+            continue;
+
+        quint32 currTime = entry.function->tempoType() == Function::Time ? m_elapsedTime : m_elapsedBeats;
+        quint32 funcStart = sf->startTime();
+        quint32 funcStop = entry.stopTime;
+        qreal fadeFraction = 1.0;
+
+        if (fadeIn > 0 && currTime < funcStart + fadeIn)
+        {
+            // In fade-in region: ramp from 0 to 1
+            fadeFraction = qreal(currTime - funcStart) / qreal(fadeIn);
+            fadeFraction = qBound(0.0, fadeFraction, 1.0);
+        }
+        else if (fadeOut > 0 && currTime > funcStop - fadeOut)
+        {
+            // In fade-out region: ramp from 1 to 0
+            fadeFraction = qreal(funcStop - currTime) / qreal(fadeOut);
+            fadeFraction = qBound(0.0, fadeFraction, 1.0);
+        }
+
+        // Apply fade combined with track intensity
+        int overrideId = sf->intensityOverrideId();
+        if (overrideId >= 0)
+        {
+            // Find the track intensity for this function
+            qreal trackIntensity = 1.0;
+            foreach (Track *track, m_show->tracks())
+            {
+                if (track->showFunctions().contains(sf))
+                {
+                    trackIntensity = m_intensityMap.value(track->id(), 1.0);
+                    break;
+                }
+            }
+            entry.function->adjustAttribute(fadeFraction * trackIntensity, overrideId);
+        }
+    }
+
+    // Phase 3. Check if we need to stop some running Functions (time-based)
     // It is done in reverse order for two reasons:
     // 1- m_runningQueue is not ordered by stop time
     // 2- to avoid messing up with indices when an entry is removed
     for (int i = m_runningQueue.count() - 1; i >= 0; i--)
     {
-        Function *func = m_runningQueue.at(i).first;
-        quint32 stopTime = m_runningQueue.at(i).second;
+        Function *func = m_runningQueue.at(i).function;
+        quint32 stopTime = m_runningQueue.at(i).stopTime;
         quint32 currTime = func->tempoType() == Function::Time ? m_elapsedTime : m_elapsedBeats;
 
         // if we passed the function stop time
@@ -278,7 +336,7 @@ void ShowRunner::write(MasterTimer *timer)
         }
     }
 
-    // Phase 3. Check if this is the end of the Show
+    // Phase 4. Check if this is the end of the Show
     if (m_elapsedTime >= m_totalRunTime)
     {
         if (m_show != NULL)
@@ -311,8 +369,7 @@ void ShowRunner::adjustIntensity(qreal fraction, const Track *track)
 
         for (int i = 0; i < m_runningQueue.count(); i++)
         {
-            Function *rf = m_runningQueue.at(i).first;
-            if (f == rf)
+            if (m_runningQueue.at(i).function == f)
                 f->adjustAttribute(fraction, sf->intensityOverrideId());
         }
     }
