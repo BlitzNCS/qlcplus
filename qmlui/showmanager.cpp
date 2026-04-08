@@ -37,6 +37,8 @@ ShowManager::ShowManager(QQuickView *view, Doc *doc, QObject *parent)
     , m_currentShow(nullptr)
     , m_stretchFunctions(false)
     , m_gridEnabled(false)
+    , m_snapToItems(true)
+    , m_equalPowerFades(false)
     , m_snapGuideX(-1.0)
     , m_timeScale(5.0)
     , m_currentTime(0)
@@ -168,6 +170,34 @@ void ShowManager::setGridEnabled(bool gridEnabled)
 
     m_gridEnabled = gridEnabled;
     emit gridEnabledChanged(m_gridEnabled);
+}
+
+bool ShowManager::snapToItems() const
+{
+    return m_snapToItems;
+}
+
+void ShowManager::setSnapToItems(bool snapToItems)
+{
+    if (m_snapToItems == snapToItems)
+        return;
+
+    m_snapToItems = snapToItems;
+    emit snapToItemsChanged(m_snapToItems);
+}
+
+bool ShowManager::equalPowerFades() const
+{
+    return m_equalPowerFades;
+}
+
+void ShowManager::setEqualPowerFades(bool equalPower)
+{
+    if (m_equalPowerFades == equalPower)
+        return;
+
+    m_equalPowerFades = equalPower;
+    emit equalPowerFadesChanged(m_equalPowerFades);
 }
 
 double ShowManager::snapGuideX() const
@@ -692,6 +722,75 @@ void ShowManager::setShowItemFadeOut(ShowFunction *sf, int fadeOut)
     m_doc->setModified();
 }
 
+ShowFunction *ShowManager::findAdjacentClipBefore(ShowFunction *sf) const
+{
+    if (m_currentShow == nullptr || sf == nullptr)
+        return nullptr;
+
+    Track *track = m_currentShow->getTrackFromShowFunctionID(sf->id());
+    if (track == nullptr)
+        return nullptr;
+
+    ShowFunction *bestMatch = nullptr;
+    quint32 sfStart = sf->startTime();
+
+    foreach (ShowFunction *candidate, track->showFunctions())
+    {
+        if (candidate == sf)
+            continue;
+
+        quint32 candidateEnd = candidate->startTime() + candidate->duration();
+
+        // candidate must end at or before this clip's start
+        // (allow small overlap for existing crossfades)
+        if (candidateEnd > sfStart + sf->fadeInDuration())
+            continue;
+
+        if (bestMatch == nullptr ||
+            candidateEnd > bestMatch->startTime() + bestMatch->duration())
+        {
+            bestMatch = candidate;
+        }
+    }
+
+    return bestMatch;
+}
+
+bool ShowManager::applyCrossfade(ShowFunction *sfBefore, ShowFunction *sfAfter, int crossfadeDuration)
+{
+    if (sfBefore == nullptr || sfAfter == nullptr || m_currentShow == nullptr)
+        return false;
+
+    if (crossfadeDuration < 0)
+        crossfadeDuration = 0;
+
+    // The "natural" junction is where clip B starts when there's no crossfade overlap.
+    // This is always at sfBefore's end: sfBefore.startTime + sfBefore.duration
+    quint32 naturalJunction = sfBefore->startTime() + sfBefore->duration();
+
+    // Clamp crossfade to not exceed half of either clip's duration
+    quint32 maxBefore = sfBefore->duration() / 2;
+    quint32 maxAfter = sfAfter->duration() / 2;
+    quint32 maxDuration = qMin(maxBefore, maxAfter);
+    if ((quint32)crossfadeDuration > maxDuration)
+        crossfadeDuration = maxDuration;
+
+    // Move clip B to create the overlap
+    quint32 newAfterStart = naturalJunction - crossfadeDuration;
+    sfAfter->setStartTime(newAfterStart);
+
+    // Set linked fades for the crossfade region.
+    // Only update the fades that correspond to the crossfade
+    // (clip A's fade-out and clip B's fade-in).
+    // Don't touch clip A's fade-in or clip B's fade-out.
+    sfBefore->setFadeOutDuration(crossfadeDuration);
+    sfAfter->setFadeInDuration(crossfadeDuration);
+
+    m_doc->setModified();
+
+    return true;
+}
+
 void ShowManager::resetContents()
 {
     resetView();
@@ -781,6 +880,7 @@ void ShowManager::playShow()
     if (m_currentShow->isRunning() == false)
     {
         m_cursorMovedDuringPause = false;
+        m_currentShow->setEqualPowerFades(m_equalPowerFades);
         m_currentShow->start(m_doc->masterTimer(), FunctionParent::master(), m_currentTime);
         setPlaybackState(true, false);
         return;
@@ -793,6 +893,7 @@ void ShowManager::playShow()
             m_currentShow->stop(FunctionParent::master());
             m_currentShow->stopAndWait();
             m_cursorMovedDuringPause = false;
+            m_currentShow->setEqualPowerFades(m_equalPowerFades);
             m_currentShow->start(m_doc->masterTimer(), FunctionParent::master(), m_currentTime);
         }
         else
@@ -1034,10 +1135,34 @@ bool ShowManager::checkOverlapping(Track *track, ShowFunction *sourceFunc,
         if (func != nullptr)
         {
             quint32 fst = sf->startTime();
-            if ((startTime >= fst && startTime <= fst + sf->duration()) ||
-                (fst >= startTime && fst <= startTime + duration))
+            quint32 fEnd = fst + sf->duration();
+            quint32 srcEnd = startTime + duration;
+
+            if ((startTime >= fst && startTime < fEnd) ||
+                (fst >= startTime && fst < srcEnd))
             {
-                return true;
+                // Check if the overlap is within a crossfade region
+                quint32 overlapStart = qMax(startTime, fst);
+                quint32 overlapEnd = qMin(srcEnd, fEnd);
+                quint32 overlapAmount = overlapEnd - overlapStart;
+
+                // Allow if overlap fits within the existing crossfade fades
+                bool isCrossfade = false;
+                if (startTime >= fst && startTime < fEnd)
+                {
+                    // sourceFunc starts inside sf — allowed if within sf's fade-out
+                    if (sf->fadeOutDuration() > 0 && overlapAmount <= sf->fadeOutDuration())
+                        isCrossfade = true;
+                }
+                if (fst >= startTime && fst < srcEnd)
+                {
+                    // sf starts inside sourceFunc — allowed if within sourceFunc's fade-out
+                    if (sourceFunc->fadeOutDuration() > 0 && overlapAmount <= sourceFunc->fadeOutDuration())
+                        isCrossfade = true;
+                }
+
+                if (!isCrossfade)
+                    return true;
             }
         }
     }

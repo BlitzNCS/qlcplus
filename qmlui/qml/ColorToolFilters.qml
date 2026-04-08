@@ -46,7 +46,7 @@ Rectangle
 
     property int currentFilterIndex: -1
 
-    signal toolColorChanged(real r, real g, real b, real w, real a, real uv)
+    signal toolColorChanged(real r, real g, real b, real w, real a, real uv, real ww, real cw)
 
     onFilterRGBChanged:
     {

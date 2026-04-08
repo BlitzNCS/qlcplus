@@ -20,6 +20,8 @@
 #include <QMutex>
 #include <QDebug>
 
+#include <QtMath>
+
 #include "showrunner.h"
 #include "showfunction.h"
 #include "function.h"
@@ -44,6 +46,7 @@ ShowRunner::ShowRunner(const Doc* doc, quint32 showID, quint32 startTime)
     , m_elapsedBeats(0)
     , beatSynced(false)
     , m_totalRunTime(0)
+    , m_equalPowerFades(false)
 {
     Q_ASSERT(m_doc != NULL);
     Q_ASSERT(showID != Show::invalidId());
@@ -100,6 +103,11 @@ ShowRunner::ShowRunner(const Doc* doc, quint32 showID, quint32 startTime)
     m_runningQueue.clear();
 
     qDebug() << "ShowRunner created";
+}
+
+void ShowRunner::setEqualPowerFades(bool enable)
+{
+    m_equalPowerFades = enable;
 }
 
 ShowRunner::~ShowRunner()
@@ -274,8 +282,16 @@ void ShowRunner::write(MasterTimer *timer)
     {
         RunningEntry &entry = m_runningQueue[i];
         ShowFunction *sf = entry.showFunction;
+
+        // Use per-instance fades if set, otherwise fall back to Function defaults
         quint32 fadeIn = sf->fadeInDuration();
         quint32 fadeOut = sf->fadeOutDuration();
+        if (fadeIn == 0 && fadeOut == 0)
+        {
+            Function *f = entry.function;
+            fadeIn = f->fadeInSpeed();
+            fadeOut = f->fadeOutSpeed();
+        }
 
         if (fadeIn == 0 && fadeOut == 0)
             continue;
@@ -290,12 +306,16 @@ void ShowRunner::write(MasterTimer *timer)
             // In fade-in region: ramp from 0 to 1
             fadeFraction = qreal(currTime - funcStart) / qreal(fadeIn);
             fadeFraction = qBound(0.0, fadeFraction, 1.0);
+            if (m_equalPowerFades)
+                fadeFraction = qSin(fadeFraction * M_PI_2);
         }
         else if (fadeOut > 0 && currTime > funcStop - fadeOut)
         {
             // In fade-out region: ramp from 1 to 0
             fadeFraction = qreal(funcStop - currTime) / qreal(fadeOut);
             fadeFraction = qBound(0.0, fadeFraction, 1.0);
+            if (m_equalPowerFades)
+                fadeFraction = qSin(fadeFraction * M_PI_2);
         }
 
         // Apply fade combined with track intensity

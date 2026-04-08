@@ -475,6 +475,7 @@ void Show::preRun(MasterTimer* timer)
     }
 
     m_runner = new ShowRunner(doc(), this->id(), elapsed());
+    m_runner->setEqualPowerFades(m_equalPowerFades);
     int i = 0;
     foreach (Track *track, m_tracks)
         m_runner->adjustIntensity(getAttributeValue(i++), track);

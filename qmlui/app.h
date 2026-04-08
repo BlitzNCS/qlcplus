@@ -140,8 +140,10 @@ public:
         White   = (1 << 6),
         Amber   = (1 << 7),
         UV      = (1 << 8),
-        Lime    = (1 << 9),
-        Indigo  = (1 << 10),
+        Lime      = (1 << 9),
+        Indigo    = (1 << 10),
+        WarmWhite = (1 << 11),
+        CoolWhite = (1 << 12),
     };
     Q_ENUM(ChannelColors)
 

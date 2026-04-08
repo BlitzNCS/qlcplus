@@ -346,6 +346,8 @@ QColor FixtureUtils::headColor(Fixture *fixture, int headIndex)
     quint32 UV = fixture->channelNumber(QLCChannel::UV, QLCChannel::MSB, headIndex);
     quint32 lime = fixture->channelNumber(QLCChannel::Lime, QLCChannel::MSB, headIndex);
     quint32 indigo = fixture->channelNumber(QLCChannel::Indigo, QLCChannel::MSB, headIndex);
+    quint32 warmWhite = fixture->channelNumber(QLCChannel::WarmWhite, QLCChannel::MSB, headIndex);
+    quint32 coolWhite = fixture->channelNumber(QLCChannel::CoolWhite, QLCChannel::MSB, headIndex);
 
     if (white != QLCChannel::invalid() && fixture->channelValueAt(white))
         finalColor = blendColors(finalColor, Qt::white, (float)fixture->channelValueAt(white) / 255.0);
@@ -362,8 +364,15 @@ QColor FixtureUtils::headColor(Fixture *fixture, int headIndex)
     if (indigo != QLCChannel::invalid() && fixture->channelValueAt(indigo))
         finalColor = blendColors(finalColor, QColor(0xFF4B0082), (float)fixture->channelValueAt(indigo) / 255.0);
 
+    if (warmWhite != QLCChannel::invalid() && fixture->channelValueAt(warmWhite))
+        finalColor = blendColors(finalColor, QColor(0xFFFFD2A6), (float)fixture->channelValueAt(warmWhite) / 255.0);
+
+    if (coolWhite != QLCChannel::invalid() && fixture->channelValueAt(coolWhite))
+        finalColor = blendColors(finalColor, QColor(0xFFD4E5FF), (float)fixture->channelValueAt(coolWhite) / 255.0);
+
     if (white != QLCChannel::invalid() || amber != QLCChannel::invalid() || UV != QLCChannel::invalid() ||
-        lime != QLCChannel::invalid() || indigo != QLCChannel::invalid())
+        lime != QLCChannel::invalid() || indigo != QLCChannel::invalid() ||
+        warmWhite != QLCChannel::invalid() || coolWhite != QLCChannel::invalid())
         colorFound = true;
 
     //qDebug() << "fixture" << fixture->name() << "head" << headIndex << "hasdimmer" << hasDimmer;

@@ -2073,6 +2073,8 @@ QMultiHash<int, SceneValue> FixtureManager::getFixtureCapabilities(quint32 itemI
                     case QLCChannel::UV:
                     case QLCChannel::Lime:
                     case QLCChannel::Indigo:
+                    case QLCChannel::WarmWhite:
+                    case QLCChannel::CoolWhite:
                         hasColor = true;
                         updateColorsMap(col, capDelta);
                         channelsMap.insert(chType, SceneValue(fixtureID, ch));
@@ -2317,6 +2319,12 @@ void FixtureManager::updateColorsMap(int type, int delta)
         break;
         case QLCChannel::Indigo:
             maskVal = App::Indigo;
+        break;
+        case QLCChannel::WarmWhite:
+            maskVal = App::WarmWhite;
+        break;
+        case QLCChannel::CoolWhite:
+            maskVal = App::CoolWhite;
         break;
         default: return;
     }

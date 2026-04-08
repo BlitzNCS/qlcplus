@@ -268,7 +268,7 @@ public:
 
     Q_INVOKABLE void setChannelValueByType(int type, int value, bool isRelative = false, quint32 channel = UINT_MAX);
 
-    Q_INVOKABLE void setColorValue(QColor col, QColor wauv);
+    Q_INVOKABLE void setColorValue(QColor col, QColor wauv, QColor wwcw = QColor());
 
     /** Set a Pan/Tilt position in degrees */
     Q_INVOKABLE void setPositionValue(int type, float degrees, bool isRelative);

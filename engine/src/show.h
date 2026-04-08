@@ -63,6 +63,17 @@ public:
     bool copyFrom(const Function* function) override;
 
     /*********************************************************************
+     * Fade mode
+     *********************************************************************/
+public:
+    /** Get/Set equal power fade mode for the ShowRunner */
+    bool equalPowerFades() const { return m_equalPowerFades; }
+    void setEqualPowerFades(bool enable) { m_equalPowerFades = enable; }
+
+private:
+    bool m_equalPowerFades = false;
+
+    /*********************************************************************
      * Time division
      *********************************************************************/
 public:

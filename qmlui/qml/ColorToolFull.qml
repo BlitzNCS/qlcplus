@@ -41,7 +41,10 @@ Rectangle
 
     property int slHandleSize: UISettings.listItemHeight * 0.8
 
-    signal toolColorChanged(real r, real g, real b, real w, real a, real uv)
+    property color currentWWCW
+    property bool showPaletteWWCW: currentWWCW.r > 0 || currentWWCW.g > 0
+
+    signal toolColorChanged(real r, real g, real b, real w, real a, real uv, real ww, real cw)
     signal released()
 
     onCurrentRGBChanged:
@@ -126,7 +129,7 @@ Rectangle
                 bSpin.value = b*/
 
                 currentRGB = Qt.rgba(r / 255, g / 255, b / 255, 1.0)
-                toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b, currentWAUV.r, currentWAUV.g, currentWAUV.b)
+                toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b, currentWAUV.r, currentWAUV.g, currentWAUV.b, currentWWCW.r, currentWWCW.g)
             }
 
             onPressed: (mouse) => setPickedColor(mouse)
@@ -158,7 +161,7 @@ Rectangle
             to: 255
             value: currentRGB.r * 255
             onValueModified: toolColorChanged(value / 255, currentRGB.g, currentRGB.b,
-                                          currentWAUV.r, currentWAUV.g, currentWAUV.b)
+                                          currentWAUV.r, currentWAUV.g, currentWAUV.b, currentWWCW.r, currentWWCW.g)
         }
 
         RobotoText
@@ -176,7 +179,7 @@ Rectangle
             to: 255
             value: currentRGB.g * 255
             onValueModified: toolColorChanged(currentRGB.r, value / 255, currentRGB.b,
-                                          currentWAUV.r, currentWAUV.g, currentWAUV.b)
+                                          currentWAUV.r, currentWAUV.g, currentWAUV.b, currentWWCW.r, currentWWCW.g)
         }
 
         RobotoText
@@ -194,7 +197,7 @@ Rectangle
             to: 255
             value: currentRGB.b * 255
             onValueModified: toolColorChanged(currentRGB.r, currentRGB.g, value / 255,
-                                          currentWAUV.r, currentWAUV.g, currentWAUV.b)
+                                          currentWAUV.r, currentWAUV.g, currentWAUV.b, currentWWCW.r, currentWWCW.g)
         }
 
         RobotoText
@@ -237,7 +240,7 @@ Rectangle
             wheelEnabled: true
             value: currentWAUV.r * 255
             onMoved: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
-                                  valueAt(position) / 255, currentWAUV.g, currentWAUV.b)
+                                  valueAt(position) / 255, currentWAUV.g, currentWAUV.b, currentWWCW.r, currentWWCW.g)
         }
 
         CustomSpinBox
@@ -250,7 +253,7 @@ Rectangle
             to: 255
             value: currentWAUV.r * 255
             onValueModified: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
-                                          value / 255, currentWAUV.g, currentWAUV.b)
+                                          value / 255, currentWAUV.g, currentWAUV.b, currentWWCW.r, currentWWCW.g)
         }
 
         RobotoText
@@ -271,7 +274,7 @@ Rectangle
             wheelEnabled: true
             value: currentWAUV.g * 255
             onMoved: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
-                                  currentWAUV.r, valueAt(position) / 255, currentWAUV.b)
+                                  currentWAUV.r, valueAt(position) / 255, currentWAUV.b, currentWWCW.r, currentWWCW.g)
         }
 
         CustomSpinBox
@@ -284,7 +287,7 @@ Rectangle
             to: 255
             value: currentWAUV.g * 255
             onValueModified: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
-                                          currentWAUV.r, value / 255, currentWAUV.b)
+                                          currentWAUV.r, value / 255, currentWAUV.b, currentWWCW.r, currentWWCW.g)
         }
 
         RobotoText
@@ -305,7 +308,7 @@ Rectangle
             wheelEnabled: true
             value: currentWAUV.b * 255
             onMoved: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
-                                  currentWAUV.r, currentWAUV.g, valueAt(position) / 255)
+                                  currentWAUV.r, currentWAUV.g, valueAt(position) / 255, currentWWCW.r, currentWWCW.g)
         }
 
         CustomSpinBox
@@ -318,7 +321,75 @@ Rectangle
             to: 255
             value: currentWAUV.b * 255
             onValueModified: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
-                                          currentWAUV.r, currentWAUV.g, value / 255)
+                                          currentWAUV.r, currentWAUV.g, value / 255, currentWWCW.r, currentWWCW.g)
+        }
+
+        RobotoText
+        {
+            visible: (colorsMask & App.WarmWhite) || showPaletteWWCW
+            height: UISettings.listItemHeight
+            label: qsTr("Warm White")
+        }
+
+        CustomSlider
+        {
+            id: wwSlider
+            visible: (colorsMask & App.WarmWhite) || showPaletteWWCW
+            Layout.fillWidth: true
+            from: 0
+            to: 255
+            stepSize: 1
+            wheelEnabled: true
+            value: currentWWCW.r * 255
+            onMoved: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
+                                  currentWAUV.r, currentWAUV.g, currentWAUV.b, valueAt(position) / 255, currentWWCW.g)
+        }
+
+        CustomSpinBox
+        {
+            id: wwSpin
+            visible: (colorsMask & App.WarmWhite) || showPaletteWWCW
+            width: UISettings.bigItemHeight * 0.7
+            height: UISettings.listItemHeight
+            from: 0
+            to: 255
+            value: currentWWCW.r * 255
+            onValueModified: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
+                                          currentWAUV.r, currentWAUV.g, currentWAUV.b, value / 255, currentWWCW.g)
+        }
+
+        RobotoText
+        {
+            visible: (colorsMask & App.CoolWhite) || showPaletteWWCW
+            height: UISettings.listItemHeight
+            label: qsTr("Cool White")
+        }
+
+        CustomSlider
+        {
+            id: cwSlider
+            visible: (colorsMask & App.CoolWhite) || showPaletteWWCW
+            Layout.fillWidth: true
+            from: 0
+            to: 255
+            stepSize: 1
+            wheelEnabled: true
+            value: currentWWCW.g * 255
+            onMoved: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
+                                  currentWAUV.r, currentWAUV.g, currentWAUV.b, currentWWCW.r, valueAt(position) / 255)
+        }
+
+        CustomSpinBox
+        {
+            id: cwSpin
+            visible: (colorsMask & App.CoolWhite) || showPaletteWWCW
+            width: UISettings.bigItemHeight * 0.7
+            height: UISettings.listItemHeight
+            from: 0
+            to: 255
+            value: currentWWCW.g * 255
+            onValueModified: toolColorChanged(currentRGB.r, currentRGB.g, currentRGB.b,
+                                          currentWAUV.r, currentWAUV.g, currentWAUV.b, currentWWCW.r, value / 255)
         }
     }
 

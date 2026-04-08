@@ -61,6 +61,28 @@ Item
     onFadeInDurationChanged: fadeCanvas.requestPaint()
     onFadeOutDurationChanged: fadeCanvas.requestPaint()
 
+    // Crossfade properties
+    property ShowFunction adjacentClipBefore: null
+    property int crossfadeDuration: 0
+
+    function refreshAdjacentClip()
+    {
+        adjacentClipBefore = showManager.findAdjacentClipBefore(sfRef)
+        if (adjacentClipBefore)
+        {
+            // crossfade duration = overlap between the two clips
+            var beforeEnd = adjacentClipBefore.startTime + adjacentClipBefore.duration
+            if (beforeEnd > startTime)
+                crossfadeDuration = beforeEnd - startTime
+            else
+                crossfadeDuration = 0
+        }
+        else
+        {
+            crossfadeDuration = 0
+        }
+    }
+
     // Snap-to-item properties
     property var snapEdges: []
     property real snapThreshold: 15
@@ -71,6 +93,9 @@ Item
 
     function getVisibleSnapEdges()
     {
+        if (!showManager.snapToItems)
+            return []
+
         // itemRoot.parent is the Flickable's contentItem,
         // itemRoot.parent.parent is the Flickable (itemsArea)
         var flickable = itemRoot.parent ? itemRoot.parent.parent : null
@@ -79,8 +104,8 @@ Item
         return showManager.getSnapEdges(sfRef.functionID)
     }
 
-    onStartTimeChanged: updateGeometry()
-    onDurationChanged: { updateGeometry(); fadeCanvas.requestPaint() }
+    onStartTimeChanged: { updateGeometry(); refreshAdjacentClip() }
+    onDurationChanged: { updateGeometry(); fadeCanvas.requestPaint(); refreshAdjacentClip() }
     onTimeScaleChanged: { updateGeometry(); fadeCanvas.requestPaint() }
     onTimeDivisionChanged: { updateGeometry(); fadeCanvas.requestPaint() }
 
@@ -94,6 +119,7 @@ Item
     {
         updateGeometry()
         updateTooltipText()
+        refreshAdjacentClip()
     }
 
     function updateGeometry()
@@ -136,6 +162,8 @@ Item
             tooltip += "\n" + qsTr("Fade In: ") + TimeUtils.msToString(fadeInDuration)
         if (fadeOutDuration > 0)
             tooltip += "\n" + qsTr("Fade Out: ") + TimeUtils.msToString(fadeOutDuration)
+        if (crossfadeDuration > 0)
+            tooltip += "\n" + qsTr("Crossfade: ") + TimeUtils.msToString(crossfadeDuration)
         toolTipText = tooltip
     }
 
@@ -331,6 +359,90 @@ Item
         }
     }
 
+    /* Crossfade handle - appears at junction between adjacent clips */
+    Rectangle
+    {
+        id: crossfadeHandle
+        x: -width / 2
+        y: (itemRoot.height - height) / 2
+        z: 7
+        width: 16
+        height: 16
+        rotation: 45
+        radius: 2
+        color: crossfadeHandleMa.containsMouse || crossfadeHandleMa.pressed ? "#FFFF00" : "#FF8800"
+        border.width: 1
+        border.color: "#333333"
+        visible: sfRef && !sfRef.locked && adjacentClipBefore !== null &&
+                 !adjacentClipBefore.locked
+        opacity: crossfadeDuration > 0 ? 1.0 :
+                 (crossfadeHandleMa.containsMouse ? 0.8 : 0.5)
+
+        MouseArea
+        {
+            id: crossfadeHandleMa
+            anchors.fill: parent
+            anchors.margins: -8
+            hoverEnabled: true
+            preventStealing: true
+            cursorShape: containsMouse ? Qt.SizeHorCursor : Qt.ArrowCursor
+
+            property real pressX: 0
+            property int origCrossfade: 0
+
+            onPressed: (mouse) =>
+            {
+                isDragging = true
+                showManager.enableFlicking(false)
+                pressX = mapToItem(itemRoot.parent, mouse.x, mouse.y).x
+                origCrossfade = crossfadeDuration
+            }
+            onPositionChanged: (mouse) =>
+            {
+                if (!pressed)
+                    return
+
+                var globalX = mapToItem(itemRoot.parent, mouse.x, mouse.y).x
+                var dx = globalX - pressX
+                // dragging right = increase crossfade, left = decrease
+                var pixelDelta = dx
+
+                var timeDelta
+                if (timeDivision === Show.Time)
+                    timeDelta = TimeUtils.posToMs(Math.abs(pixelDelta), timeScale, tickSize)
+                else
+                    timeDelta = TimeUtils.posToBeat(Math.abs(pixelDelta), tickSize, beatsDivision)
+
+                if (pixelDelta < 0)
+                    timeDelta = -timeDelta
+
+                var newCrossfade = Math.max(0, origCrossfade + timeDelta)
+                showManager.applyCrossfade(adjacentClipBefore, sfRef, newCrossfade)
+                crossfadeDuration = newCrossfade
+
+                // Force geometry update since isDragging blocks the normal path
+                if (timeDivision === Show.Time)
+                    itemRoot.x = TimeUtils.timeToSize(sfRef.startTime, timeScale, tickSize)
+                else
+                    itemRoot.x = TimeUtils.beatsToSize(sfRef.startTime, tickSize, beatsDivision)
+                fadeCanvas.requestPaint()
+
+                infoTextBox.height = itemRoot.height / 2
+                infoTextBox.textHAlign = Text.AlignLeft
+                infoText = qsTr("Crossfade: ") + TimeUtils.msToString(newCrossfade)
+            }
+            onReleased:
+            {
+                infoText = ""
+                isDragging = false
+                showManager.enableFlicking(true)
+                refreshAdjacentClip()
+                updateGeometry()
+                updateTooltipText()
+            }
+        }
+    }
+
     /* Fade in handle - drag from left edge to create fade in */
     Rectangle
     {
@@ -402,6 +514,8 @@ Item
                 sfRef.fadeInDuration = newFadeIn
                 fadeCanvas.requestPaint()
 
+                infoTextBox.height = itemRoot.height / 2
+                infoTextBox.textHAlign = Text.AlignLeft
                 infoText = qsTr("Fade In: ") + TimeUtils.msToString(newFadeIn)
             }
             onReleased:
@@ -486,6 +600,8 @@ Item
                 sfRef.fadeOutDuration = newFadeOut
                 fadeCanvas.requestPaint()
 
+                infoTextBox.height = itemRoot.height / 2
+                infoTextBox.textHAlign = Text.AlignRight
                 infoText = qsTr("Fade Out: ") + TimeUtils.msToString(newFadeOut)
             }
             onReleased:
