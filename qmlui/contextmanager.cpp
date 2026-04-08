@@ -1291,8 +1291,10 @@ void ContextManager::getCurrentColors(QQuickItem *item) const
 {
     int rgbDiffCount = 0;
     int wauvDiffCount = 0;
+    int wwcwDiffCount = 0;
     QColor rgbColor;
     QColor wauvColor;
+    QColor wwcwColor;
 
     for (const quint32 &itemID : m_selectedFixtures)
     {
@@ -1305,6 +1307,7 @@ void ContextManager::getCurrentColors(QQuickItem *item) const
 
         QColor itemRgbColor;
         QColor itemWauvColor;
+        QColor itemWwcwColor;
 
         QVector <quint32> rgbCh = fixture->rgbChannels(headIndex);
         if (rgbCh.size() == 3)
@@ -1342,13 +1345,28 @@ void ContextManager::getCurrentColors(QQuickItem *item) const
             wauvColor = itemWauvColor;
         else
             wauvDiffCount++;
+
+        quint32 warmWhite = fixture->channelNumber(QLCChannel::WarmWhite, QLCChannel::MSB, headIndex);
+        quint32 coolWhite = fixture->channelNumber(QLCChannel::CoolWhite, QLCChannel::MSB, headIndex);
+
+        if (warmWhite != QLCChannel::invalid())
+            itemWwcwColor.setRed(fixture->channelValueAt(warmWhite));
+        if (coolWhite != QLCChannel::invalid())
+            itemWwcwColor.setGreen(fixture->channelValueAt(coolWhite));
+
+        if (wwcwDiffCount == 0 || itemWwcwColor == wwcwColor)
+            wwcwColor = itemWwcwColor;
+        else
+            wwcwDiffCount++;
     }
 
     QMetaObject::invokeMethod(item, "updateColors",
                               Q_ARG(QVariant, rgbDiffCount ? false : true),
                               Q_ARG(QVariant, rgbColor),
                               Q_ARG(QVariant, wauvDiffCount ? false : true),
-                              Q_ARG(QVariant, wauvColor));
+                              Q_ARG(QVariant, wauvColor),
+                              Q_ARG(QVariant, wwcwDiffCount ? false : true),
+                              Q_ARG(QVariant, wwcwColor));
 }
 
 void ContextManager::createFixtureGroup()
@@ -1537,7 +1555,7 @@ void ContextManager::slotChannelValueChanged(quint32 fxID, quint32 channel, quin
         m_functionManager->setChannelValue(fxID, channel, uchar(value));
 }
 
-void ContextManager::setColorValue(QColor col, QColor wauv)
+void ContextManager::setColorValue(QColor col, QColor wauv, QColor wwcw)
 {
     setChannelValueByType((int)QLCChannel::Red, col.red());
     setChannelValueByType((int)QLCChannel::Green, col.green());
@@ -1546,6 +1564,12 @@ void ContextManager::setColorValue(QColor col, QColor wauv)
     setChannelValueByType((int)QLCChannel::White, wauv.red());
     setChannelValueByType((int)QLCChannel::Amber, wauv.green());
     setChannelValueByType((int)QLCChannel::UV, wauv.blue());
+
+    if (wwcw.isValid())
+    {
+        setChannelValueByType((int)QLCChannel::WarmWhite, wwcw.red());
+        setChannelValueByType((int)QLCChannel::CoolWhite, wwcw.green());
+    }
 
     QColor cmykColor = col.toCmyk();
     setChannelValueByType((int)QLCChannel::Cyan, cmykColor.cyan());

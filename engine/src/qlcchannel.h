@@ -134,6 +134,10 @@ public:
         IntensityIndigoFine,
         IntensityLime,
         IntensityLimeFine,
+        IntensityWarmWhite,
+        IntensityWarmWhiteFine,
+        IntensityCoolWhite,
+        IntensityCoolWhiteFine,
         IntensityHue,
         IntensityHueFine,
         IntensitySaturation,
@@ -315,7 +319,9 @@ public:
         White       = 0xFFFFFF,
         UV          = 0x9400D3,
         Lime        = 0xADFF2F,
-        Indigo      = 0x4B0082
+        Indigo      = 0x4B0082,
+        WarmWhite   = 0xFFD2A6,
+        CoolWhite   = 0xD4E5FF
     };
 
     Q_ENUM(PrimaryColour)

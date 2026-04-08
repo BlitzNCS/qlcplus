@@ -38,11 +38,12 @@ Rectangle
     property int colorsMask: 0
     property color currentRGB
     property color currentWAUV
+    property color currentWWCW
     property string colorToolQML: "qrc:/ColorToolBasic.qml"
     property alias showCloseButton: closeButton.visible
     property alias showPalette: paletteBox.visible
 
-    signal toolColorChanged(real r, real g, real b, real w, real a, real uv)
+    signal toolColorChanged(real r, real g, real b, real w, real a, real uv, real ww, real cw)
     signal close()
 
     onVisibleChanged:
@@ -55,12 +56,14 @@ Rectangle
         }
     }
 
-    function updateColors(validRgb, rgb, validWauv, wauv)
+    function updateColors(validRgb, rgb, validWauv, wauv, validWwcw, wwcw)
     {
         if (validRgb)
             currentRGB = rgb
         if (validWauv)
             currentWAUV = wauv
+        if (validWwcw)
+            currentWWCW = wwcw
     }
 
     function loadPalette(id)
@@ -198,6 +201,8 @@ Rectangle
                     item.currentRGB = Qt.binding(function() { return colorToolBox.currentRGB })
                 if (item.hasOwnProperty("currentWAUV"))
                     item.currentWAUV = Qt.binding(function() { return colorToolBox.currentWAUV })
+                if (item.hasOwnProperty("currentWWCW"))
+                    item.currentWWCW = Qt.binding(function() { return colorToolBox.currentWWCW })
             }
 
             Connections
@@ -205,7 +210,7 @@ Rectangle
                 target: toolLoader.item
                 ignoreUnknownSignals: true
 
-                function onToolColorChanged(r, g, b, w, a, uv)
+                function onToolColorChanged(r, g, b, w, a, uv, ww, cw)
                 {
                     var strRGB = Helpers.getHTMLColor(r * 255, g * 255, b * 255)
                     var strWAUV = Helpers.getHTMLColor(w * 255, a * 255, uv * 255)
@@ -218,11 +223,10 @@ Rectangle
                     }
                     else
                     {
-                        //console.log("MAIN r:"+r+" g:"+g+" b:"+b)
-                        //console.log("MAIN w:"+w+" a:"+a+" uv:"+uv)
                         currentRGB = Qt.rgba(r, g, b, 1.0)
                         currentWAUV = Qt.rgba(w, a, uv, 1.0)
-                        colorToolBox.toolColorChanged(r, g, b, w, a, uv)
+                        currentWWCW = Qt.rgba(ww ? ww : 0, cw ? cw : 0, 0, 1.0)
+                        colorToolBox.toolColorChanged(r, g, b, w, a, uv, ww ? ww : 0, cw ? cw : 0)
                     }
 
                     if (paletteBox.isEditing || paletteBox.checked)

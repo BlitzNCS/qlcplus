@@ -55,6 +55,8 @@
 #define KXMLQLCChannelColourUV         QStringLiteral("UV")
 #define KXMLQLCChannelColourLime       QStringLiteral("Lime")
 #define KXMLQLCChannelColourIndigo     QStringLiteral("Indigo")
+#define KXMLQLCChannelColourWarmWhite  QStringLiteral("Warm White")
+#define KXMLQLCChannelColourCoolWhite  QStringLiteral("Cool White")
 
 QLCChannel::QLCChannel(QObject *parent)
     : QObject(parent)
@@ -280,6 +282,24 @@ void QLCChannel::setPreset(QLCChannel::Preset preset)
         case IntensityLimeFine:
             prname = KXMLQLCChannelColourLime + " fine";
             col = Lime;
+            cb = LSB;
+        break;
+        case IntensityWarmWhite:
+            prname = KXMLQLCChannelColourWarmWhite;
+            col = WarmWhite;
+        break;
+        case IntensityWarmWhiteFine:
+            prname = KXMLQLCChannelColourWarmWhite + " fine";
+            col = WarmWhite;
+            cb = LSB;
+        break;
+        case IntensityCoolWhite:
+            prname = KXMLQLCChannelColourCoolWhite;
+            col = CoolWhite;
+        break;
+        case IntensityCoolWhiteFine:
+            prname = KXMLQLCChannelColourCoolWhite + " fine";
+            col = CoolWhite;
             cb = LSB;
         break;
         case IntensityHue:
@@ -885,6 +905,8 @@ QStringList QLCChannel::colourList()
     list << KXMLQLCChannelColourUV;
     list << KXMLQLCChannelColourLime;
     list << KXMLQLCChannelColourIndigo;
+    list << KXMLQLCChannelColourWarmWhite;
+    list << KXMLQLCChannelColourCoolWhite;
     return list;
 }
 
@@ -914,6 +936,10 @@ QString QLCChannel::colourToString(PrimaryColour colour)
         return KXMLQLCChannelColourLime;
     case Indigo:
         return KXMLQLCChannelColourIndigo;
+    case WarmWhite:
+        return KXMLQLCChannelColourWarmWhite;
+    case CoolWhite:
+        return KXMLQLCChannelColourCoolWhite;
     case NoColour:
     default:
         return KXMLQLCChannelColourGeneric;
@@ -944,6 +970,10 @@ QLCChannel::PrimaryColour QLCChannel::stringToColour(const QString& str)
         return Lime;
     else if (str == KXMLQLCChannelColourIndigo)
         return Indigo;
+    else if (str == KXMLQLCChannelColourWarmWhite)
+        return WarmWhite;
+    else if (str == KXMLQLCChannelColourCoolWhite)
+        return CoolWhite;
     else
         return NoColour;
 }
