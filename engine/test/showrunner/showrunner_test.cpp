@@ -66,7 +66,11 @@ void ShowRunner_Test::stopRunner()
 {
     ShowRunner runner(m_doc, m_show->id());
     runner.m_elapsedTime = 500;
-    runner.m_runningQueue.append(QPair<Function*,quint32>(m_scene,1000));
+    ShowRunner::RunningEntry entry;
+    entry.function = m_scene;
+    entry.showFunction = m_track->showFunctions().first();
+    entry.stopTime = 1000;
+    runner.m_runningQueue.append(entry);
     runner.stop();
     QCOMPARE(runner.m_elapsedTime, quint32(0));
     QCOMPARE(runner.m_runningQueue.count(), 0);
