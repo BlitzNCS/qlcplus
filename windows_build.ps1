@@ -294,6 +294,15 @@ if ($Deploy) {
         throw "Cannot find $ExePath - did the build succeed?"
     }
 
+    # Copy QLC+ project DLLs from the build tree next to the exe
+    Write-Host "    Copying QLC+ DLLs to $ExeDir ..." -ForegroundColor Gray
+    $projectDlls = Get-ChildItem -Path $BuildDir -Filter "*.dll" -Recurse |
+        Where-Object { $_.DirectoryName -ne $ExeDir }
+    foreach ($dll in $projectDlls) {
+        Copy-Item $dll.FullName -Destination $ExeDir -Force
+        Write-Host "      $($dll.Name)" -ForegroundColor Gray
+    }
+
     # Copy MSYS2 MinGW runtime DLLs needed by QLC+
     $msysDlls = @(
         "libusb-1.0.dll",
