@@ -178,6 +178,34 @@ Rectangle
 
             IconButton
             {
+                id: snapItemsButton
+                z: 2
+                width: parent.height - 6
+                height: width
+                faSource: FontAwesome.fa_magnet
+                faColor: checked ? "lightyellow" : UISettings.fgMain
+                tooltip: qsTr("Snap to items")
+                checkable: true
+                checked: showManager.snapToItems
+                onToggled: showManager.snapToItems = checked
+            }
+
+            IconButton
+            {
+                id: equalPowerButton
+                z: 2
+                width: parent.height - 6
+                height: width
+                faSource: FontAwesome.fa_wave_square
+                faColor: checked ? "lightyellow" : UISettings.fgMain
+                tooltip: qsTr("Equal power fades (smoother crossfades)")
+                checkable: true
+                checked: showManager.equalPowerFades
+                onToggled: showManager.equalPowerFades = checked
+            }
+
+            IconButton
+            {
                 id: stretchBtn
                 width: parent.height - 6
                 height: width

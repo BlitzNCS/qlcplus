@@ -50,6 +50,8 @@ class ShowManager final : public PreviewContext
 
     Q_PROPERTY(bool stretchFunctions READ stretchFunctions WRITE setStretchFunctions NOTIFY stretchFunctionsChanged)
     Q_PROPERTY(bool gridEnabled READ gridEnabled WRITE setGridEnabled NOTIFY gridEnabledChanged)
+    Q_PROPERTY(bool snapToItems READ snapToItems WRITE setSnapToItems NOTIFY snapToItemsChanged)
+    Q_PROPERTY(bool equalPowerFades READ equalPowerFades WRITE setEqualPowerFades NOTIFY equalPowerFadesChanged)
     Q_PROPERTY(double snapGuideX READ snapGuideX WRITE setSnapGuideX NOTIFY snapGuideXChanged)
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
     Q_PROPERTY(bool isPaused READ isPaused NOTIFY isPausedChanged)
@@ -111,6 +113,14 @@ public:
     bool gridEnabled() const;
     void setGridEnabled(bool gridEnabled);
 
+    /** Get/Set the snap-to-items functionality */
+    bool snapToItems() const;
+    void setSnapToItems(bool snapToItems);
+
+    /** Get/Set equal power fade curves (vs linear) */
+    bool equalPowerFades() const;
+    void setEqualPowerFades(bool equalPower);
+
     /** Get/Set the X position of the snap guide line (-1 = hidden) */
     double snapGuideX() const;
     void setSnapGuideX(double snapGuideX);
@@ -133,6 +143,8 @@ signals:
     void showNameChanged(QString showName);
     void stretchFunctionsChanged(bool stretchFunction);
     void gridEnabledChanged(bool gridEnabled);
+    void snapToItemsChanged(bool snapToItems);
+    void equalPowerFadesChanged(bool equalPower);
     void snapGuideXChanged();
     void isPlayingChanged(bool playing);
     void isPausedChanged(bool paused);
@@ -158,6 +170,14 @@ private:
     /** Flag that indicates if the Show items should be
      *  snapped to the closest grid divisor */
     bool m_gridEnabled;
+
+    /** Flag that indicates if the Show items should be
+     *  snapped to adjacent item edges */
+    bool m_snapToItems;
+
+    /** Flag that indicates if equal power fade curves should be used
+     *  instead of linear fades */
+    bool m_equalPowerFades;
 
     /** X position of the snap guide line (-1 = hidden) */
     double m_snapGuideX;

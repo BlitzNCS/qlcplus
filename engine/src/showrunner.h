@@ -44,6 +44,9 @@ public:
     ShowRunner(const Doc *doc, quint32 showID, quint32 startTime = 0);
     ~ShowRunner();
 
+    /** Set whether to use equal power fade curves instead of linear */
+    void setEqualPowerFades(bool enable);
+
     /** Start the runner */
     void start();
 
@@ -95,6 +98,9 @@ private:
 
     /** List of the currently running Functions */
     QList<RunningEntry> m_runningQueue;
+
+    /** Whether to use equal power (cosine) fade curves */
+    bool m_equalPowerFades;
 
 private:
     FunctionParent functionParent() const;

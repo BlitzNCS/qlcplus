@@ -37,6 +37,8 @@ ShowManager::ShowManager(QQuickView *view, Doc *doc, QObject *parent)
     , m_currentShow(nullptr)
     , m_stretchFunctions(false)
     , m_gridEnabled(false)
+    , m_snapToItems(true)
+    , m_equalPowerFades(false)
     , m_snapGuideX(-1.0)
     , m_timeScale(5.0)
     , m_currentTime(0)
@@ -168,6 +170,34 @@ void ShowManager::setGridEnabled(bool gridEnabled)
 
     m_gridEnabled = gridEnabled;
     emit gridEnabledChanged(m_gridEnabled);
+}
+
+bool ShowManager::snapToItems() const
+{
+    return m_snapToItems;
+}
+
+void ShowManager::setSnapToItems(bool snapToItems)
+{
+    if (m_snapToItems == snapToItems)
+        return;
+
+    m_snapToItems = snapToItems;
+    emit snapToItemsChanged(m_snapToItems);
+}
+
+bool ShowManager::equalPowerFades() const
+{
+    return m_equalPowerFades;
+}
+
+void ShowManager::setEqualPowerFades(bool equalPower)
+{
+    if (m_equalPowerFades == equalPower)
+        return;
+
+    m_equalPowerFades = equalPower;
+    emit equalPowerFadesChanged(m_equalPowerFades);
 }
 
 double ShowManager::snapGuideX() const
@@ -734,18 +764,28 @@ bool ShowManager::applyCrossfade(ShowFunction *sfBefore, ShowFunction *sfAfter, 
     if (crossfadeDuration < 0)
         crossfadeDuration = 0;
 
-    // Clamp crossfade to not exceed either clip's duration
-    quint32 maxDuration = qMin(sfBefore->duration() / 2, sfAfter->duration() / 2);
+    // The "natural" junction is where clip B starts when there's no crossfade overlap.
+    // This is always at sfBefore's end: sfBefore.startTime + sfBefore.duration
+    quint32 naturalJunction = sfBefore->startTime() + sfBefore->duration();
+
+    // Clamp crossfade to not exceed half of either clip's duration
+    quint32 maxBefore = sfBefore->duration() / 2;
+    quint32 maxAfter = sfAfter->duration() / 2;
+    quint32 maxDuration = qMin(maxBefore, maxAfter);
     if ((quint32)crossfadeDuration > maxDuration)
         crossfadeDuration = maxDuration;
 
-    // Calculate where clip B should start to create the overlap
-    quint32 beforeEnd = sfBefore->startTime() + sfBefore->duration();
-    quint32 newAfterStart = beforeEnd - crossfadeDuration;
-
+    // Move clip B to create the overlap
+    quint32 newAfterStart = naturalJunction - crossfadeDuration;
     sfAfter->setStartTime(newAfterStart);
+
+    // Set linked fades for the crossfade region.
+    // Only update the fades that correspond to the crossfade
+    // (clip A's fade-out and clip B's fade-in).
+    // Don't touch clip A's fade-in or clip B's fade-out.
     sfBefore->setFadeOutDuration(crossfadeDuration);
     sfAfter->setFadeInDuration(crossfadeDuration);
+
     m_doc->setModified();
 
     return true;
@@ -840,6 +880,7 @@ void ShowManager::playShow()
     if (m_currentShow->isRunning() == false)
     {
         m_cursorMovedDuringPause = false;
+        m_currentShow->setEqualPowerFades(m_equalPowerFades);
         m_currentShow->start(m_doc->masterTimer(), FunctionParent::master(), m_currentTime);
         setPlaybackState(true, false);
         return;
@@ -852,6 +893,7 @@ void ShowManager::playShow()
             m_currentShow->stop(FunctionParent::master());
             m_currentShow->stopAndWait();
             m_cursorMovedDuringPause = false;
+            m_currentShow->setEqualPowerFades(m_equalPowerFades);
             m_currentShow->start(m_doc->masterTimer(), FunctionParent::master(), m_currentTime);
         }
         else

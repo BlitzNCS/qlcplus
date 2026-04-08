@@ -93,6 +93,9 @@ Item
 
     function getVisibleSnapEdges()
     {
+        if (!showManager.snapToItems)
+            return []
+
         // itemRoot.parent is the Flickable's contentItem,
         // itemRoot.parent.parent is the Flickable (itemsArea)
         var flickable = itemRoot.parent ? itemRoot.parent.parent : null
@@ -416,6 +419,12 @@ Item
                 var newCrossfade = Math.max(0, origCrossfade + timeDelta)
                 showManager.applyCrossfade(adjacentClipBefore, sfRef, newCrossfade)
                 crossfadeDuration = newCrossfade
+
+                // Force geometry update since isDragging blocks the normal path
+                if (timeDivision === Show.Time)
+                    itemRoot.x = TimeUtils.timeToSize(sfRef.startTime, timeScale, tickSize)
+                else
+                    itemRoot.x = TimeUtils.beatsToSize(sfRef.startTime, tickSize, beatsDivision)
                 fadeCanvas.requestPaint()
 
                 infoTextBox.height = itemRoot.height / 2
