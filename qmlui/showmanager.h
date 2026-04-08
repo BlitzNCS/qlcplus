@@ -290,6 +290,15 @@ public:
     /** Set the fade out duration of a ShowFunction item */
     Q_INVOKABLE void setShowItemFadeOut(ShowFunction *sf, int fadeOut);
 
+    /** Find the ShowFunction that ends closest to (and before) the start of
+     *  the given ShowFunction on the same track. Returns null if none found. */
+    Q_INVOKABLE ShowFunction *findAdjacentClipBefore(ShowFunction *sf) const;
+
+    /** Create or adjust a crossfade between two adjacent clips on the same track.
+     *  Moves sfAfter's start earlier to create an overlap region of the given duration.
+     *  Sets matching fadeOut on sfBefore and fadeIn on sfAfter. */
+    Q_INVOKABLE bool applyCrossfade(ShowFunction *sfBefore, ShowFunction *sfAfter, int crossfadeDuration);
+
     /** Returns pixel X positions of all item edges (start + end) across all tracks,
      *  excluding the item with the given function ID */
     Q_INVOKABLE QVariantList getSnapEdges(quint32 excludeFuncId,

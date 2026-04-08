@@ -692,6 +692,65 @@ void ShowManager::setShowItemFadeOut(ShowFunction *sf, int fadeOut)
     m_doc->setModified();
 }
 
+ShowFunction *ShowManager::findAdjacentClipBefore(ShowFunction *sf) const
+{
+    if (m_currentShow == nullptr || sf == nullptr)
+        return nullptr;
+
+    Track *track = m_currentShow->getTrackFromShowFunctionID(sf->id());
+    if (track == nullptr)
+        return nullptr;
+
+    ShowFunction *bestMatch = nullptr;
+    quint32 sfStart = sf->startTime();
+
+    foreach (ShowFunction *candidate, track->showFunctions())
+    {
+        if (candidate == sf)
+            continue;
+
+        quint32 candidateEnd = candidate->startTime() + candidate->duration();
+
+        // candidate must end at or before this clip's start
+        // (allow small overlap for existing crossfades)
+        if (candidateEnd > sfStart + sf->fadeInDuration())
+            continue;
+
+        if (bestMatch == nullptr ||
+            candidateEnd > bestMatch->startTime() + bestMatch->duration())
+        {
+            bestMatch = candidate;
+        }
+    }
+
+    return bestMatch;
+}
+
+bool ShowManager::applyCrossfade(ShowFunction *sfBefore, ShowFunction *sfAfter, int crossfadeDuration)
+{
+    if (sfBefore == nullptr || sfAfter == nullptr || m_currentShow == nullptr)
+        return false;
+
+    if (crossfadeDuration < 0)
+        crossfadeDuration = 0;
+
+    // Clamp crossfade to not exceed either clip's duration
+    quint32 maxDuration = qMin(sfBefore->duration() / 2, sfAfter->duration() / 2);
+    if ((quint32)crossfadeDuration > maxDuration)
+        crossfadeDuration = maxDuration;
+
+    // Calculate where clip B should start to create the overlap
+    quint32 beforeEnd = sfBefore->startTime() + sfBefore->duration();
+    quint32 newAfterStart = beforeEnd - crossfadeDuration;
+
+    sfAfter->setStartTime(newAfterStart);
+    sfBefore->setFadeOutDuration(crossfadeDuration);
+    sfAfter->setFadeInDuration(crossfadeDuration);
+    m_doc->setModified();
+
+    return true;
+}
+
 void ShowManager::resetContents()
 {
     resetView();
@@ -1034,10 +1093,34 @@ bool ShowManager::checkOverlapping(Track *track, ShowFunction *sourceFunc,
         if (func != nullptr)
         {
             quint32 fst = sf->startTime();
-            if ((startTime >= fst && startTime <= fst + sf->duration()) ||
-                (fst >= startTime && fst <= startTime + duration))
+            quint32 fEnd = fst + sf->duration();
+            quint32 srcEnd = startTime + duration;
+
+            if ((startTime >= fst && startTime < fEnd) ||
+                (fst >= startTime && fst < srcEnd))
             {
-                return true;
+                // Check if the overlap is within a crossfade region
+                quint32 overlapStart = qMax(startTime, fst);
+                quint32 overlapEnd = qMin(srcEnd, fEnd);
+                quint32 overlapAmount = overlapEnd - overlapStart;
+
+                // Allow if overlap fits within the existing crossfade fades
+                bool isCrossfade = false;
+                if (startTime >= fst && startTime < fEnd)
+                {
+                    // sourceFunc starts inside sf — allowed if within sf's fade-out
+                    if (sf->fadeOutDuration() > 0 && overlapAmount <= sf->fadeOutDuration())
+                        isCrossfade = true;
+                }
+                if (fst >= startTime && fst < srcEnd)
+                {
+                    // sf starts inside sourceFunc — allowed if within sourceFunc's fade-out
+                    if (sourceFunc->fadeOutDuration() > 0 && overlapAmount <= sourceFunc->fadeOutDuration())
+                        isCrossfade = true;
+                }
+
+                if (!isCrossfade)
+                    return true;
             }
         }
     }
