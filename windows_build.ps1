@@ -32,6 +32,10 @@
 .PARAMETER SkipD2XX
     Skip D2XX SDK download.
 
+.PARAMETER Deploy
+    After building, copy all Qt and MSYS2 DLLs into the build directory
+    so you can run the exe directly for development/testing.
+
 .PARAMETER QtVersion
     Qt version to install (default: 6.10.2).
 
@@ -46,12 +50,20 @@
     Build QLC+ 4 with default settings.
 
 .EXAMPLE
+    .\windows_build.ps1 -QmlUI -Deploy
+    Build QLC+ 5 and deploy DLLs so you can run it directly.
+
+.EXAMPLE
     .\windows_build.ps1 -QmlUI -Installer
     Build QLC+ 5 and create an NSIS installer.
 
 .EXAMPLE
     .\windows_build.ps1 -SkipDeps -SkipQt -SkipD2XX
     Rebuild without re-downloading anything.
+
+.EXAMPLE
+    .\windows_build.ps1 -QmlUI -SkipDeps -SkipQt -SkipD2XX -Deploy
+    Quick rebuild + deploy for iterative development.
 #>
 
 [CmdletBinding()]
@@ -59,6 +71,7 @@ param(
     [switch]$QmlUI,
     [switch]$Install,
     [switch]$Installer,
+    [switch]$Deploy,
     [switch]$SkipDeps,
     [switch]$SkipQt,
     [switch]$SkipD2XX,
@@ -260,20 +273,86 @@ Write-Host "    Build complete." -ForegroundColor Green
 Write-Host ""
 
 # -------------------------------------------------------------------
-# Step 7: Install (optional)
+# Step 7: Deploy DLLs for dev/testing (optional)
+# -------------------------------------------------------------------
+if ($Deploy) {
+    Write-Host ">>> Step 7: Deploying DLLs to build directory..." -ForegroundColor Yellow
+
+    $MingwBin = Join-Path $Msys2Dir "mingw64\bin"
+
+    # Determine exe location in build tree
+    if ($QmlUI) {
+        $ExeDir  = Join-Path $BuildDir "qmlui"
+        $ExeName = "qlcplus-qml.exe"
+    } else {
+        $ExeDir  = Join-Path $BuildDir "main"
+        $ExeName = "qlcplus.exe"
+    }
+
+    $ExePath = Join-Path $ExeDir $ExeName
+    if (-not (Test-Path $ExePath)) {
+        throw "Cannot find $ExePath - did the build succeed?"
+    }
+
+    # Copy MSYS2 MinGW runtime DLLs needed by QLC+
+    $msysDlls = @(
+        "libusb-1.0.dll",
+        "libogg-0.dll",
+        "libopus-0.dll",
+        "libmp3lame-0.dll",
+        "libmpg123-0.dll",
+        "libvorbis-0.dll",
+        "libvorbisenc-2.dll",
+        "libFLAC.dll",
+        "libsndfile-1.dll",
+        "libfftw3-3.dll",
+        "libmad-0.dll",
+        "libstdc++-6.dll",
+        "libgcc_s_seh-1.dll",
+        "libwinpthread-1.dll"
+    )
+
+    Write-Host "    Copying MSYS2 DLLs to $ExeDir ..." -ForegroundColor Gray
+    foreach ($dll in $msysDlls) {
+        $src = Join-Path $MingwBin $dll
+        if (Test-Path $src) {
+            Copy-Item $src -Destination $ExeDir -Force
+        } else {
+            Write-Host "    WARNING: $dll not found in $MingwBin (skipping)" -ForegroundColor DarkYellow
+        }
+    }
+
+    # Run windeployqt to copy Qt DLLs, plugins, and QML imports
+    Write-Host "    Running windeployqt..." -ForegroundColor Gray
+    $windeployqt = Join-Path $QtDir "bin\windeployqt.exe"
+    $deployCmd = "& '$windeployqt'"
+    if ($QmlUI) {
+        $qmlDir = Join-Path $ScriptDir "qmlui\qml"
+        & $windeployqt --qmldir $qmlDir $ExePath
+    } else {
+        & $windeployqt $ExePath
+    }
+
+    Write-Host "    Done. You can now run:" -ForegroundColor Green
+    Write-Host "      $ExePath" -ForegroundColor White
+    Write-Host ""
+}
+
+# -------------------------------------------------------------------
+# Step 8: Install (optional)
 # -------------------------------------------------------------------
 if ($Install -or $Installer) {
-    Write-Host ">>> Step 7: Installing..." -ForegroundColor Yellow
+    Write-Host ">>> Step 8: Installing..." -ForegroundColor Yellow
     Invoke-Msys2 "cmake --build '$buildDirUnix' --target install"
     Write-Host "    Install complete." -ForegroundColor Green
     Write-Host ""
 }
 
 # -------------------------------------------------------------------
-# Step 8: Create NSIS installer (optional)
+# Step 9: Create NSIS installer (optional)
 # -------------------------------------------------------------------
 if ($Installer) {
-    Write-Host ">>> Step 8: Creating NSIS installer..." -ForegroundColor Yellow
+    Write-Host ">>> Step 9: Creating NSIS installer..." -ForegroundColor Yellow
 
     if ($QmlUI) {
         $deployArgs = "--qmldir '$srcDirUnix/qmlui/qml' qlcplus-qml.exe qlcplusengine.dll plugins/dmxusb.dll"
@@ -296,11 +375,18 @@ Write-Host "============================================" -ForegroundColor Green
 Write-Host "  Build finished successfully!" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green
 
-if ($Install -or $Installer) {
+if ($Deploy) {
+    if ($QmlUI) {
+        Write-Host "  Run it:  $BuildDir\qmlui\qlcplus-qml.exe" -ForegroundColor White
+    } else {
+        Write-Host "  Run it:  $BuildDir\main\qlcplus.exe" -ForegroundColor White
+    }
+} elseif ($Install -or $Installer) {
     Write-Host "  Installed to: C:\qlcplus"
 } else {
     Write-Host "  Build output: $BuildDir"
     Write-Host ""
+    Write-Host "  To run directly, re-run with -Deploy (copies DLLs to build dir)"
     Write-Host "  To install, re-run with -Install"
     Write-Host "  To create an installer, re-run with -Installer"
 }
