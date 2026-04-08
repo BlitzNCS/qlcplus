@@ -670,6 +670,28 @@ bool ShowManager::setShowItemDuration(ShowFunction *sf, int duration)
     return true;
 }
 
+void ShowManager::setShowItemFadeIn(ShowFunction *sf, int fadeIn)
+{
+    if (sf == nullptr)
+        return;
+
+    quint32 maxFade = sf->duration() - sf->fadeOutDuration();
+    quint32 clampedFadeIn = qMin((quint32)qMax(fadeIn, 0), maxFade);
+    sf->setFadeInDuration(clampedFadeIn);
+    m_doc->setModified();
+}
+
+void ShowManager::setShowItemFadeOut(ShowFunction *sf, int fadeOut)
+{
+    if (sf == nullptr)
+        return;
+
+    quint32 maxFade = sf->duration() - sf->fadeInDuration();
+    quint32 clampedFadeOut = qMin((quint32)qMax(fadeOut, 0), maxFade);
+    sf->setFadeOutDuration(clampedFadeOut);
+    m_doc->setModified();
+}
+
 void ShowManager::resetContents()
 {
     resetView();

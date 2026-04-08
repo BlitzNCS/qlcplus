@@ -28,6 +28,8 @@
 #define KXMLShowFunctionID QStringLiteral("ID")
 #define KXMLShowFunctionStartTime QStringLiteral("StartTime")
 #define KXMLShowFunctionDuration QStringLiteral("Duration")
+#define KXMLShowFunctionFadeIn QStringLiteral("FadeIn")
+#define KXMLShowFunctionFadeOut QStringLiteral("FadeOut")
 #define KXMLShowFunctionColor QStringLiteral("Color")
 #define KXMLShowFunctionLocked QStringLiteral("Locked")
 
@@ -37,6 +39,8 @@ ShowFunction::ShowFunction(quint32 id, QObject *parent)
     , m_functionId(Function::invalidId())
     , m_startTime(UINT_MAX)
     , m_duration(0)
+    , m_fadeInDuration(0)
+    , m_fadeOutDuration(0)
     , m_color(QColor())
     , m_locked(false)
     , m_intensityOverrideId(-1)
@@ -103,6 +107,34 @@ quint32 ShowFunction::duration(const Doc *doc) const
         return 0;
 
     return f->totalDuration();
+}
+
+void ShowFunction::setFadeInDuration(quint32 fadeIn)
+{
+    if (fadeIn == m_fadeInDuration)
+        return;
+
+    m_fadeInDuration = fadeIn;
+    emit fadeInDurationChanged();
+}
+
+quint32 ShowFunction::fadeInDuration() const
+{
+    return m_fadeInDuration;
+}
+
+void ShowFunction::setFadeOutDuration(quint32 fadeOut)
+{
+    if (fadeOut == m_fadeOutDuration)
+        return;
+
+    m_fadeOutDuration = fadeOut;
+    emit fadeOutDurationChanged();
+}
+
+quint32 ShowFunction::fadeOutDuration() const
+{
+    return m_fadeOutDuration;
 }
 
 void ShowFunction::setColor(QColor color)
@@ -176,6 +208,10 @@ bool ShowFunction::loadXML(QXmlStreamReader &root)
         setStartTime(attrs.value(KXMLShowFunctionStartTime).toString().toUInt());
     if (attrs.hasAttribute(KXMLShowFunctionDuration))
         setDuration(attrs.value(KXMLShowFunctionDuration).toString().toUInt());
+    if (attrs.hasAttribute(KXMLShowFunctionFadeIn))
+        setFadeInDuration(attrs.value(KXMLShowFunctionFadeIn).toString().toUInt());
+    if (attrs.hasAttribute(KXMLShowFunctionFadeOut))
+        setFadeOutDuration(attrs.value(KXMLShowFunctionFadeOut).toString().toUInt());
     if (attrs.hasAttribute(KXMLShowFunctionColor))
         setColor(QColor(attrs.value(KXMLShowFunctionColor).toString()));
     if (attrs.hasAttribute(KXMLShowFunctionLocked))
@@ -203,6 +239,10 @@ bool ShowFunction::saveXML(QXmlStreamWriter *doc, quint32 trackId) const
     doc->writeAttribute(KXMLShowFunctionStartTime, QString::number(startTime()));
     if (m_duration)
         doc->writeAttribute(KXMLShowFunctionDuration, QString::number(m_duration));
+    if (m_fadeInDuration)
+        doc->writeAttribute(KXMLShowFunctionFadeIn, QString::number(m_fadeInDuration));
+    if (m_fadeOutDuration)
+        doc->writeAttribute(KXMLShowFunctionFadeOut, QString::number(m_fadeOutDuration));
     if (color().isValid())
         doc->writeAttribute(KXMLShowFunctionColor, color().name());
     if (isLocked())

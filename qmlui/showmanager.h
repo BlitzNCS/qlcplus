@@ -284,6 +284,12 @@ public:
     /** Set the duration of a ShowFunction item (if not overlapping) */
     Q_INVOKABLE bool setShowItemDuration(ShowFunction *sf, int duration);
 
+    /** Set the fade in duration of a ShowFunction item */
+    Q_INVOKABLE void setShowItemFadeIn(ShowFunction *sf, int fadeIn);
+
+    /** Set the fade out duration of a ShowFunction item */
+    Q_INVOKABLE void setShowItemFadeOut(ShowFunction *sf, int fadeOut);
+
     /** Returns pixel X positions of all item edges (start + end) across all tracks,
      *  excluding the item with the given function ID */
     Q_INVOKABLE QVariantList getSnapEdges(quint32 excludeFuncId,
